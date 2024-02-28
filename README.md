@@ -1,5 +1,5 @@
-# RMT
-Official code for "RMT: Retentive Networks Meet Vision Transformer"
+# (CVPR2024)RMT: Retentive Networks Meet Vision Transformers
+Congratulations! Our work is accepted by CVPR2024
 
 [Arxiv](https://arxiv.org/abs/2309.11523)
 
@@ -23,12 +23,10 @@ Vision Transformer (ViT) has gained increasing attention in the computer vision 
 
 If you use RMT in your research, please consider the following BibTeX entry and giving us a star:
 ```BibTeX
-@misc{fan2023rmt,
-      title={RMT: Retentive Networks Meet Vision Transformers}, 
-      author={Qihang Fan and Huaibo Huang and Mingrui Chen and Hongmin Liu and Ran He},
-      year={2023},
-      eprint={2309.11523},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@inproceedings{fan2023rmt,
+  title={RMT: Retentive Networks Meet Vision Transformers},
+  author={Qihang Fan and Huaibo Huang and Mingrui Chen and Hongmin Liu and Ran He},
+  booktitle={CVPR},
+  year={2023}
 }
 ```
