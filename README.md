@@ -27,6 +27,6 @@ If you use RMT in your research, please consider the following BibTeX entry and 
   title={RMT: Retentive Networks Meet Vision Transformers},
   author={Qihang Fan and Huaibo Huang and Mingrui Chen and Hongmin Liu and Ran He},
   booktitle={CVPR},
-  year={2023}
+  year={2024}
 }
 ```
