@@ -9,14 +9,15 @@ Vision Transformer (ViT) has gained increasing attention in the computer vision 
 
 ### Results
 
-|Model|Params|FLOPs|Acc|
-|:---:|:---:|:---:|:---:|
-|RMT-S|27M|4.5G|84.1%|
-|RMT-S*|27M|4.5G|84.8%|
-|RMT-B|54M|9.7G|85.0%|
-|RMT-B*|55M|9.7G|85.6%|
-|RMT-L|95M|18.2G|85.5%|
-|RMT-L*|96M|18.2G|86.1%|
+|Model|Params|FLOPs|Acc|log|
+|:---:|:---:|:---:|:---:|:---:|
+|RMT-T|14M|2.5G|82.4%|[RMT-T](RMT_log/rmt_t.txt)|
+|RMT-S|27M|4.5G|84.1%|[RMT-S](RMT_log/rmt_s.txt)|
+|RMT-S*|27M|4.5G|84.8%|[RMT-S*](RMT_log/rmt_s_label.txt)|
+|RMT-B|54M|9.7G|85.0%|[RMT-B](RMT_log/rmt_m.txt)|
+|RMT-B*|55M|9.7G|85.6%|[RMT-B*](RMT_log/rmt_m_label.txt)|
+|RMT-L|95M|18.2G|85.5%|[RMT-L](RMT_log/rmt_l.txt)|
+|RMT-L*|96M|18.2G|86.1%|[RMT-L*](RMT_log/rmt_l_label.txt)|
 
 
 ## Citation
