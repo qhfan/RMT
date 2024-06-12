@@ -33,3 +33,6 @@ To get the FLOPs, run
 python tools/get_flops.py <CONFIG_FILE>
 ```
 
+## Results
+![RMT_det](RMT_det.png)
+
