@@ -10,6 +10,8 @@
    ├── train2017
    └── val2017
    ```
+3.```bash
+   bash install.sh```
 
 
 
