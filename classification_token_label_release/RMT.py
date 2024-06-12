@@ -36,6 +36,33 @@ def rand_bbox(size, lam, scale=1):
 
     return bbx1, bby1, bbx2, bby2
 
+class SwishImplementation(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, i):
+        result = i * torch.sigmoid(i)
+        ctx.save_for_backward(i)
+        return result
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        i = ctx.saved_tensors[0]
+        sigmoid_i = torch.sigmoid(i)
+        return grad_output * (sigmoid_i * (1 + i * (1 - sigmoid_i)))
+
+class MemoryEfficientSwish(nn.Module):
+    def forward(self, x):
+        return SwishImplementation.apply(x)
+
+
+def rotate_every_two(x):
+    x1 = x[:, :, :, :, ::2]
+    x2 = x[:, :, :, :, 1::2]
+    x = torch.stack([-x2, x1], dim=-1)
+    return x.flatten(-2)
+
+def theta_shift(x, sin, cos):
+    return (x * cos) + (rotate_every_two(x) * sin)
+
 class DWConv2d(nn.Module):
 
     def __init__(self, dim, kernel_size, stride, padding):
@@ -52,7 +79,7 @@ class DWConv2d(nn.Module):
         return x
     
 
-class RelPos2d(nn.Module):
+class RetNetRelPos2d(nn.Module):
 
     def __init__(self, embed_dim, num_heads, initial_value, heads_range):
         '''
@@ -103,22 +130,34 @@ class RelPos2d(nn.Module):
         recurrent is not implemented
         '''
         if activate_recurrent:
-
-            retention_rel_pos = self.decay.exp()
+            sin = torch.sin(self.angle * (slen[0]*slen[1] - 1))
+            cos = torch.cos(self.angle * (slen[0]*slen[1] - 1))
+            retention_rel_pos = ((sin, cos), self.decay.exp())
 
         elif chunkwise_recurrent:
+            index = torch.arange(slen[0]*slen[1]).to(self.decay)
+            sin = torch.sin(index[:, None] * self.angle[None, :]) #(l d1)
+            sin = sin.reshape(slen[0], slen[1], -1) #(h w d1)
+            cos = torch.cos(index[:, None] * self.angle[None, :]) #(l d1)
+            cos = cos.reshape(slen[0], slen[1], -1) #(h w d1)
+
             mask_h = self.generate_1d_decay(slen[0])
             mask_w = self.generate_1d_decay(slen[1])
 
-            retention_rel_pos = (mask_h, mask_w)
+            retention_rel_pos = ((sin, cos), (mask_h, mask_w))
 
         else:
+            index = torch.arange(slen[0]*slen[1]).to(self.decay)
+            sin = torch.sin(index[:, None] * self.angle[None, :]) #(l d1)
+            sin = sin.reshape(slen[0], slen[1], -1) #(h w d1)
+            cos = torch.cos(index[:, None] * self.angle[None, :]) #(l d1)
+            cos = cos.reshape(slen[0], slen[1], -1) #(h w d1)
             mask = self.generate_2d_decay(slen[0], slen[1]) #(n l l)
-            retention_rel_pos = mask
+            retention_rel_pos = ((sin, cos), mask)
 
         return retention_rel_pos
     
-class MaSAd(nn.Module):
+class VisionRetentionChunk(nn.Module):
 
     def __init__(self, embed_dim, num_heads, value_factor=1):
         super().__init__()
@@ -152,7 +191,7 @@ class MaSAd(nn.Module):
         '''
         bsz, h, w, _ = x.size()
 
-        mask_h, mask_w = rel_pos
+        (sin, cos), (mask_h, mask_w) = rel_pos
 
         q = self.q_proj(x)
         k = self.k_proj(x)
@@ -160,9 +199,10 @@ class MaSAd(nn.Module):
         lepe = self.lepe(v)
 
         k *= self.scaling
-        qr = q.view(bsz, h, w, self.num_heads, self.key_dim).permute(0, 3, 1, 2, 4) #(b n h w d1)
-        kr = k.view(bsz, h, w, self.num_heads, self.key_dim).permute(0, 3, 1, 2, 4) #(b n h w d1)
-
+        q = q.view(bsz, h, w, self.num_heads, self.key_dim).permute(0, 3, 1, 2, 4) #(b n h w d1)
+        k = k.view(bsz, h, w, self.num_heads, self.key_dim).permute(0, 3, 1, 2, 4) #(b n h w d1)
+        qr = theta_shift(q, sin, cos)
+        kr = theta_shift(k, sin, cos)
 
         '''
         qr: (b n h w d1)
@@ -194,7 +234,7 @@ class MaSAd(nn.Module):
         output = self.out_proj(output)
         return output
     
-class MaSA(nn.Module):
+class VisionRetentionAll(nn.Module):
 
     def __init__(self, embed_dim, num_heads, value_factor=1):
         super().__init__()
@@ -224,7 +264,7 @@ class MaSA(nn.Module):
         rel_pos: mask: (n l l)
         '''
         bsz, h, w, _ = x.size()
-        mask = rel_pos
+        (sin, cos), mask = rel_pos
         
         assert h*w == mask.size(1)
 
@@ -234,9 +274,10 @@ class MaSA(nn.Module):
         lepe = self.lepe(v)
 
         k *= self.scaling
-        qr = q.view(bsz, h, w, self.num_heads, -1).permute(0, 3, 1, 2, 4) #(b n h w d1)
-        kr = k.view(bsz, h, w, self.num_heads, -1).permute(0, 3, 1, 2, 4) #(b n h w d1)
-
+        q = q.view(bsz, h, w, self.num_heads, -1).permute(0, 3, 1, 2, 4) #(b n h w d1)
+        k = k.view(bsz, h, w, self.num_heads, -1).permute(0, 3, 1, 2, 4) #(b n h w d1)
+        qr = theta_shift(q, sin, cos) #(b n h w d1)
+        kr = theta_shift(k, sin, cos) #(b n h w d1)
 
         qr = qr.flatten(2, 3) #(b n l d1)
         kr = kr.flatten(2, 3) #(b n l d1)
@@ -261,7 +302,7 @@ class FeedForwardNetwork(nn.Module):
         activation_dropout=0.0,
         layernorm_eps=1e-6,
         subln=False,
-        subconv=False
+        subconv=True
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -286,12 +327,12 @@ class FeedForwardNetwork(nn.Module):
         x = self.fc1(x)
         x = self.activation_fn(x)
         x = self.activation_dropout_module(x)
+        residual = x
         if self.dwconv is not None:
-            residual = x
             x = self.dwconv(x)
-            x = x + residual
         if self.ffn_layernorm is not None:
             x = self.ffn_layernorm(x)
+        x = x + residual
         x = self.fc2(x)
         x = self.dropout_module(x)
         return x
@@ -305,9 +346,9 @@ class RetBlock(nn.Module):
         self.retention_layer_norm = nn.LayerNorm(self.embed_dim, eps=1e-6)
         assert retention in ['chunk', 'whole']
         if retention == 'chunk':
-            self.retention = MaSAd(embed_dim, num_heads)
+            self.retention = VisionRetentionChunk(embed_dim, num_heads)
         else:
-            self.retention = MaSA(embed_dim, num_heads)
+            self.retention = VisionRetentionAll(embed_dim, num_heads)
         self.drop_path = DropPath(drop_path)
         self.final_layer_norm = nn.LayerNorm(self.embed_dim, eps=1e-6)
         self.ffn = FeedForwardNetwork(embed_dim, ffn_dim)
@@ -393,7 +434,7 @@ class BasicLayer(nn.Module):
             flag = 'chunk'
         else:
             flag = 'whole'
-        self.Relpos = RelPos2d(embed_dim, num_heads, init_value, heads_range)
+        self.Relpos = RetNetRelPos2d(embed_dim, num_heads, init_value, heads_range)
 
         # build blocks
         self.blocks = nn.ModuleList([
@@ -474,7 +515,7 @@ class VisRetNet(nn.Module):
     def __init__(self, in_chans=3, num_classes=1000,
                  embed_dims=[96, 192, 384, 768], depths=[2, 2, 6, 2], num_heads=[3, 6, 12, 24],
                  init_values=[1, 1, 1, 1], heads_ranges=[3, 3, 3, 3], mlp_ratios=[3, 3, 3, 3], drop_path_rate=0.1, norm_layer=nn.LayerNorm, 
-                 patch_norm=True, use_checkpoints=[False, False, False, False], chunkwise_recurrents=[True, True, False, False],
+                 patch_norm=True, use_checkpoints=[False, False, False, False], chunkwise_recurrents=[True, True, False, False], projection=1024,
                  layerscales=[False, False, False, False], layer_init_values=1e-6,token_label=True):
         super().__init__()
 
@@ -514,9 +555,11 @@ class VisRetNet(nn.Module):
             )
             self.layers.append(layer)
             
-        self.norm = nn.BatchNorm2d(self.num_features)
+        self.proj = nn.Linear(self.num_features, projection)
+        self.norm = nn.BatchNorm2d(projection)
+        self.swish = MemoryEfficientSwish()
         self.avgpool = nn.AdaptiveAvgPool1d(1)
-        self.head = nn.Linear(self.num_features, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = nn.Linear(projection, num_classes) if num_classes > 0 else nn.Identity()
 
         self.return_dense = token_label
         self.mix_token = token_label
@@ -524,7 +567,7 @@ class VisRetNet(nn.Module):
         self.pooling_scale = 8
         if self.return_dense:
             self.aux_head = nn.Linear(
-                self.num_features,
+                embed_dims[-1],
                 num_classes) if num_classes > 0 else nn.Identity()
 
         self.apply(self._init_weights)
@@ -555,7 +598,10 @@ class VisRetNet(nn.Module):
         for layer in self.layers:
             x = layer(x)
 
+        x = self.proj(x) #(b h w c)
         x = self.norm(x.permute(0, 3, 1, 2)).flatten(2, 3) #(b c h*w)
+        x = self.swish(x)
+
         x = self.avgpool(x)  # B C 1
         x = torch.flatten(x, 1)
         return x
@@ -568,10 +614,13 @@ class VisRetNet(nn.Module):
         for layer in self.layers:
             x = layer(x)
 
-        x = self.norm(x.permute(0, 3, 1, 2)).flatten(2, 3) #(b c h*w)
         return x
+
     
     def forward_cls(self, x):
+        x = self.proj(x) #(b h w c)
+        x = self.norm(x.permute(0, 3, 1, 2)).flatten(2, 3) #(b c h*w)
+        x = self.swish(x)
         x = self.avgpool(x)  # B C 1
         x = torch.flatten(x, 1)
         return x
@@ -597,9 +646,9 @@ class VisRetNet(nn.Module):
             else:
                 bbx1, bby1, bbx2, bby2 = 0, 0, 0, 0
 
-            x = self.forward_tokens(x) #(B C H*W)
+            x = self.forward_tokens(x) #(B H W C)
             x_cls = self.head(self.forward_cls(x)) #(B 1000)
-            x_aux = self.aux_head(x.permute(0, 2, 1).contiguous()) #(B H*W 1000)
+            x_aux = self.aux_head(x.flatten(1, 2)) #(B H*W 1000)
 
             if not self.training:
                 return x_cls + 0.5 * x_aux.max(1)[0]
@@ -615,8 +664,10 @@ class VisRetNet(nn.Module):
 
             return x_cls, x_aux, (bbx1, bby1, bbx2, bby2)
     
+
+
 @register_model
-def RMT_T(args):
+def RMT_T3(args):
     model = VisRetNet(
         embed_dims=[64, 128, 256, 512],
         depths=[2, 2, 8, 2],
@@ -633,7 +684,7 @@ def RMT_T(args):
 
 
 @register_model
-def RMT_S(args):
+def RMT_S(args, **kawargs):
     model = VisRetNet(
         embed_dims=[64, 128, 256, 512],
         depths=[3, 4, 18, 4],
@@ -648,9 +699,8 @@ def RMT_S(args):
     model.default_cfg = _cfg()
     return model
 
-
 @register_model
-def RMT_B(args):
+def RMT_M2(args, **kawargs):
     model = VisRetNet(
         embed_dims=[80, 160, 320, 512],
         depths=[4, 8, 25, 8],
@@ -666,9 +716,8 @@ def RMT_B(args):
     model.default_cfg = _cfg()
     return model
 
-
 @register_model
-def RMT_L(args):
+def RMT_L6(args, **kawargs):
     model = VisRetNet(
         embed_dims=[112, 224, 448, 640],
         depths=[4, 8, 25, 8],
@@ -704,3 +753,10 @@ def throughput(model):
     torch.cuda.synchronize()
     tic2 = time.time()
     print(f"batch_size {batch_size} throughput {30 * batch_size / (tic2 - tic1)}")
+
+if __name__ == '__main__':
+    model = RMT_S(None)
+    input = torch.randn(1, 3, 224, 224)
+    flops = FlopCountAnalysis(model, input)
+    print(flop_count_table(flops))
+    #throughput(model.cuda())
