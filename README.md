@@ -9,15 +9,15 @@ Vision Transformer (ViT) has gained increasing attention in the computer vision 
 
 ### Results
 
-|Model|Params|FLOPs|Acc|log|
-|:---:|:---:|:---:|:---:|:---:|
-|RMT-T|14M|2.5G|82.4%|[RMT-T](RMT_log/rmt_t.txt)|
-|RMT-S|27M|4.5G|84.1%|[RMT-S](RMT_log/rmt_s.txt)|
-|RMT-S*|27M|4.5G|84.8%|[RMT-S*](RMT_log/rmt_s_label.txt)|
-|RMT-B|54M|9.7G|85.0%|[RMT-B](RMT_log/rmt_m.txt)|
-|RMT-B*|55M|9.7G|85.6%|[RMT-B*](RMT_log/rmt_m_label.txt)|
-|RMT-L|95M|18.2G|85.5%|[RMT-L](RMT_log/rmt_l.txt)|
-|RMT-L*|96M|18.2G|86.1%|[RMT-L*](RMT_log/rmt_l_label.txt)|
+|Model|Params|FLOPs|Acc|log|ckpt|
+|:---:|:---:|:---:|:---:|:---:|:---:|
+|RMT-T|14M|2.5G|82.4%|[RMT-T](RMT_log/rmt_t.txt)|[RMT-T](https://pan.baidu.com/s/1uTSCuPqYRNmT4Zb4Je9BOw?pwd=vsyv)|
+|RMT-S|27M|4.5G|84.1%|[RMT-S](RMT_log/rmt_s.txt)|[RMT-S](https://pan.baidu.com/s/1aQeErkmy191-zshlW2bT0g?pwd=3ay4)|
+|RMT-S*|27M|4.5G|84.8%|[RMT-S*](RMT_log/rmt_s_label.txt)|[RMT-S*](https://pan.baidu.com/s/1Xjgko9_-rokfvP39uiwTqQ?pwd=q37r)|
+|RMT-B|54M|9.7G|85.0%|[RMT-B](RMT_log/rmt_m.txt)|[RMT-B](https://pan.baidu.com/s/1ZDNl_broia_fvvlEoTaFhA?pwd=yzge)|
+|RMT-B*|55M|9.7G|85.6%|[RMT-B*](RMT_log/rmt_m_label.txt)|[RMT-B*](https://pan.baidu.com/s/1fqCzZ8Pfw39QA4LQ3dSiCg?pwd=2rdt)|
+|RMT-L|95M|18.2G|85.5%|[RMT-L](RMT_log/rmt_l.txt)|[RMT-L](https://pan.baidu.com/s/1v7QWgAh0TulWOTg4d94KHw?pwd=uewu)|
+|RMT-L*|96M|18.2G|86.1%|[RMT-L*](RMT_log/rmt_l_label.txt)|[RMT-L*](https://pan.baidu.com/s/1KvV8IMJC6xG5Eh6w6uFbpw?pwd=z1k2)|
 
 
 ## Citation
