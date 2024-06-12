@@ -12,7 +12,8 @@
    ```
 3. bash install.sh
 
-
+## ckpt
+[RMT_det](https://pan.baidu.com/s/1qWiHjEy_9w29d1lNLVOSnQ?pwd=k22z)
 
 ## Training
 
