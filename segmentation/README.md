@@ -40,4 +40,4 @@ python tools/get_flops.py configs/.../....py
 ## Results
 
 
-![rmt]('seg_res.png)
+![rmt](seg_res.png)
