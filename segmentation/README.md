@@ -15,7 +15,9 @@
            └── validation
    ```
 
+## ckpt
 
+![rmt_seg](https://pan.baidu.com/s/19q_dNqPAGnzgCWPBVYTzjg?pwd=vtpe)
 
 ## Training
 
